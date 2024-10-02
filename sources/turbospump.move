@@ -20,6 +20,11 @@ module turbospump::turbospump {
     const EPoolNotCompleted: u64 = 3;
     const EInvalidCreateParams: u64 = 4;
     const EInvalidCoinTreasuryCap: u64 = 5;
+    const EAmountOutBelowMinimum: u64 = 6; 
+    const EAmountInAboveMaximum: u64 = 7; 
+    const ESuiAmountNotEnough: u64 = 8; 
+    const ETokenReservesNotEnough: u64 = 9; 
+    const ESuiReservesNotEnough: u64 = 10; 
 
     public struct AdminCap has store, key {
 	    id: UID
@@ -96,6 +101,7 @@ module turbospump::turbospump {
         token_address: ascii::String,
         sui_amount: u64,
         token_amount: u64,
+        fee_amount: u64,
         virtual_sui_reserves: u64,
         virtual_token_reserves: u64,
         pool_id: object::ID,
@@ -178,6 +184,8 @@ module turbospump::turbospump {
         );
         balance::join<T>(&mut pool.real_token_reserves, coin::into_balance(tokenCoin));
         balance::join<SUI>(&mut pool.real_sui_reserves, coin::into_balance(suiCoin));
+        assert!(balance::value(&pool.real_token_reserves) >= tokenAmount, ETokenReservesNotEnough);
+        assert!(balance::value(&pool.real_sui_reserves) >= suiAmount, ESuiReservesNotEnough);
         (
             coin::from_balance(balance::split<T>(&mut pool.real_token_reserves, tokenAmount), txContext), 
             coin::from_balance(balance::split<SUI>(&mut pool.real_sui_reserves, suiAmount), txContext)
@@ -187,7 +195,9 @@ module turbospump::turbospump {
     public entry fun buy<T>(
         config: &mut Configuration,
         paymentCoin: Coin<SUI>,
-        tokenAmountDesired: u64,
+        amount: u64,
+        amount_threshold: u64,
+        is_exact_in: bool,
         clock: &clock::Clock,
         txContext: &mut tx_context::TxContext
     ) {
@@ -196,7 +206,9 @@ module turbospump::turbospump {
         let (remainingSuiCoin, boughtTokenCoin) = buy_with_return(
             config,
             paymentCoin,
-            tokenAmountDesired,
+            amount,
+            amount_threshold,
+            is_exact_in,
             clock,
             txContext
         );
@@ -207,7 +219,9 @@ module turbospump::turbospump {
     public fun buy_with_return<T>(
         config: &mut Configuration,
         mut paymentCoin: Coin<SUI>,
-        tokenAmountDesired: u64,
+        amount: u64,
+        amount_threshold: u64,
+        is_exact_in: bool,
         clock: &clock::Clock,
         txContext: &mut tx_context::TxContext
     ): (Coin<SUI>, Coin<T>) {
@@ -220,28 +234,45 @@ module turbospump::turbospump {
             type_name::get_address(&typeName)
         );
         assert!(!pool.is_completed, EPoolNotCompleted);
-        assert!(tokenAmountDesired > 0, EIncorrectCoinAmount);
+        assert!(amount > 0, EIncorrectCoinAmount);
         let paymentCoinValue = coin::value<SUI>(&paymentCoin);
         let availableTokenAmount = pool.virtual_token_reserves - balance::value<T>(&pool.remain_token_reserves);
-        let tokenAmountToBuy = std::u64::min(tokenAmountDesired, availableTokenAmount);
-        let liquidityCost = curves::calculate_liquidity_cost(
-            pool.virtual_sui_reserves,
-            pool.virtual_token_reserves,
-            tokenAmountToBuy
-        );
-        let platformFee = full_math_u64::mul_div_ceil(liquidityCost, config.platform_fee, FEE_RATE_SCALE);
+        let platformFee;
+        let platformFeeSuiCoin;
+        let tokenAmountToBuy;
+        let suiCost;
+        if (is_exact_in) {
+            platformFee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
+            suiCost = amount - platformFee;
+            tokenAmountToBuy = curves::calculate_token_return(
+                suiCost,
+                pool.virtual_sui_reserves,
+                pool.virtual_token_reserves,
+            );
+            assert(tokenAmountToBuy >= amount_threshold, EAmountOutBelowMinimum);
+        } else {
+            tokenAmountToBuy = std::u64::min(amount, availableTokenAmount);
+            suiCost = curves::calculate_liquidity_cost(
+                pool.virtual_sui_reserves,
+                pool.virtual_token_reserves,
+                tokenAmountToBuy
+            );
+            platformFee = full_math_u64::mul_div_ceil(suiCost, config.platform_fee, FEE_RATE_SCALE);
+            assert(suiCost <= amount_threshold, EAmountInAboveMaximum);
+        };
+        assert!(paymentCoinValue >= suiCost + platformFee, ESuiAmountNotEnough);
         let platformFeeSuiCoin = coin::split<SUI>(&mut paymentCoin, platformFee, txContext);
-        assert!(paymentCoinValue >= liquidityCost + platformFee, 6);
+        balance::join(&mut config.protocol_vault, coin::into_balance(platformFeeSuiCoin));
         let (boughtTokenCoin, remainingSuiCoin) = swap<T>(
             pool,
             coin::zero<T>(txContext),
             paymentCoin,
             tokenAmountToBuy,
-            paymentCoinValue - liquidityCost - platformFee,
+            paymentCoinValue - suiCost - platformFee,
             txContext
         );
+
         pool.virtual_token_reserves = pool.virtual_token_reserves - coin::value<T>(&boughtTokenCoin);
-        balance::join(&mut config.protocol_vault, coin::into_balance(platformFeeSuiCoin));
         if (availableTokenAmount == tokenAmountToBuy || balance::value<SUI>(&pool.real_sui_reserves) >= config.fair_launch_sui_amount) {
             let admin = config.admin;
             let graduated_fee = config.graduated_fee;
@@ -251,8 +282,9 @@ module turbospump::turbospump {
             is_buy: true,
             user: sender,
             token_address: type_name::into_string(typeName),
-            sui_amount: liquidityCost,
+            sui_amount: suiCost,
             token_amount: tokenAmountToBuy,
+            fee_amount: platformFee,
             virtual_sui_reserves: pool.virtual_sui_reserves,
             virtual_token_reserves: pool.virtual_token_reserves,
             pool_id: object::id<Pool<T>>(pool),
@@ -348,53 +380,12 @@ module turbospump::turbospump {
         event::emit<CreatedEvent>(createdEvent);
     }
 
-    
-    public entry fun create_and_buy<T>(
-        config: &mut Configuration, 
-        treasuryCap: coin::TreasuryCap<T>, 
-        suiCoin: Coin<SUI>, 
-        name: ascii::String, 
-        symbol: ascii::String, 
-        uri: ascii::String, 
-        description: ascii::String, 
-        twitter: ascii::String, 
-        telegram: ascii::String, 
-        website: ascii::String, 
-        clock: &clock::Clock, 
-        txContext: &mut tx_context::TxContext
-    ) {
-        check_version(config.version);
-        create(
-            config, 
-            treasuryCap, 
-            name, 
-            symbol, 
-            uri, 
-            description, 
-            twitter, 
-            telegram, 
-            website, 
-            clock,
-            txContext,
-        );
-
-        if (coin::value<SUI>(&suiCoin) > 0) {
-            buy<T>(
-                config,
-                suiCoin,
-                0,
-                clock,
-                txContext
-            );
-        } else {
-            coin::destroy_zero<SUI>(suiCoin);
-        };
-    }
-
     public entry fun sell<T>(
         config: &mut Configuration, 
         tokenCoin: Coin<T>, 
-        minSuiAmount: u64, 
+        amount: u64, 
+        amount_threshold: u64,
+        is_exact_in: bool,
         clock: &clock::Clock, 
         txContext: &mut tx_context::TxContext
     ) {
@@ -403,7 +394,9 @@ module turbospump::turbospump {
         let (suiCoinReturned, remainingTokenCoin) = sell_with_return(
             config,
             tokenCoin,
-            minSuiAmount,
+            amount,
+            amount_threshold,
+            is_exact_in,
             clock,
             txContext
         );
@@ -414,7 +407,9 @@ module turbospump::turbospump {
     public fun sell_with_return<T>(
         config: &mut Configuration, 
         tokenCoin: Coin<T>, 
-        minSuiAmount: u64, 
+        amount: u64, 
+        amount_threshold: u64,
+        is_exact_in: bool,
         _clock: &clock::Clock, 
         txContext: &mut tx_context::TxContext
     ): (Coin<SUI>, Coin<T>) {
@@ -427,31 +422,42 @@ module turbospump::turbospump {
         );
         
         assert!(!pool.is_completed, EPoolNotCompleted);
-        
         let tokenValue = coin::value<T>(&tokenCoin);
         assert!(tokenValue > 0, EIncorrectCoinAmount);
-        
-        let suiReceived = curves::calculate_sui_return(
-            pool.virtual_token_reserves, 
-            pool.virtual_sui_reserves, 
-            tokenValue
-        );
-        
-        let platformFee = full_math_u64::mul_div_ceil(suiReceived, config.platform_fee, FEE_RATE_SCALE);
 
-        assert!(suiReceived - platformFee >= minSuiAmount, EIncorrectCoinAmount);
+        let tokenAmountToSell;
+        let platformFee;
+        let suiReceived;
+        if (is_exact_in) {
+            tokenAmountToSell = amount;
+            suiReceived = curves::calculate_sui_return(
+                tokenAmountToSell,
+                pool.virtual_sui_reserves, 
+                pool.virtual_token_reserves,
+            );
+            platformFee = full_math_u64::mul_div_ceil(suiReceived, config.platform_fee, FEE_RATE_SCALE);
+            assert!(suiReceived - platformFee >= amount_threshold, EAmountOutBelowMinimum);
+        } else {
+            platformFee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
+            suiReceived = amount + platformFee;
+            tokenAmountToSell = curves::calculate_token_return(
+                suiReceived,
+                pool.virtual_sui_reserves,
+                pool.virtual_token_reserves,
+            );
+            assert(tokenAmountToSell < amount_threshold, EAmountInAboveMaximum);
+
+        };
         
         let (remainingTokenCoin,mut suiCoinReturned) = swap<T>(
             pool, 
-            tokenCoin, 
+            tokenCoin,
             coin::zero<SUI>(txContext), 
-            0, 
+            tokenValue - tokenAmountToSell, 
             suiReceived, 
             txContext
         );
-        
         pool.virtual_sui_reserves = pool.virtual_sui_reserves - coin::value<SUI>(&suiCoinReturned);
-        
         balance::join(&mut config.protocol_vault, coin::into_balance(coin::split<SUI>(&mut suiCoinReturned, platformFee, txContext)));
         
         let tradeEvent = TradedEvent {
@@ -460,6 +466,7 @@ module turbospump::turbospump {
             token_address: type_name::into_string(tokenTypeName), 
             sui_amount: suiReceived, 
             token_amount: tokenValue, 
+            fee_amount: platformFee,
             virtual_sui_reserves: pool.virtual_sui_reserves, 
             virtual_token_reserves: pool.virtual_token_reserves, 
             pool_id: object::id<Pool<T>>(pool), 

@@ -19,8 +19,8 @@ module turbospump::curves {
     // sui return = ReserveSUI - (ReserveSUI * ReserveToken) / (ReserveToken + tokenAmountToSell)
     public fun calculate_sui_return(
         tokenAmountToSell: u64,
-        currentReserveToken: u64, 
         currentReserveSUI: u64, 
+        currentReserveToken: u64, 
     ): u64 {
         currentReserveSUI - full_math_u64::mul_div_ceil(
             currentReserveSUI,
@@ -33,8 +33,8 @@ module turbospump::curves {
     // token return = ReserveToken - (ReserveSUI * ReserveToken) / (ReserveSUI + suiAmountToSell)
     public fun calculate_token_return(
         suiAmountToSell: u64, 
+        currentReserveSUI: u64,
         currentReserveToken: u64, 
-        currentReserveSUI: u64
     ) : u64 {
         currentReserveToken - full_math_u64::mul_div_ceil(
             currentReserveSUI,
