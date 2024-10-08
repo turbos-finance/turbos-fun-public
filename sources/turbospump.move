@@ -86,8 +86,13 @@ module turbospump::turbospump {
         bonding_curve: ascii::String,
         pool_id: object::ID,
         created_by: address,
+        real_sui_reserves: u64,
+        real_token_reserves: u64,
         virtual_sui_reserves: u64,
         virtual_token_reserves: u64,
+        remain_token_reserves: u64,
+        is_completed: bool,
+        deployment_fee: u64,
     }
     
     public struct PoolCompletedEvent has copy, drop, store {
@@ -102,8 +107,12 @@ module turbospump::turbospump {
         sui_amount: u64,
         token_amount: u64,
         fee_amount: u64,
+        real_sui_reserves: u64,
+        real_token_reserves: u64,
         virtual_sui_reserves: u64,
         virtual_token_reserves: u64,
+        remain_token_reserves: u64,
+        is_completed: bool,
         pool_id: object::ID,
     }
 
@@ -285,8 +294,12 @@ module turbospump::turbospump {
             sui_amount: suiCost,
             token_amount: tokenAmountToBuy,
             fee_amount: platformFee,
+            real_sui_reserves: balance::value(&pool.real_sui_reserves),
+            real_token_reserves: balance::value(&pool.real_token_reserves),
             virtual_sui_reserves: pool.virtual_sui_reserves,
             virtual_token_reserves: pool.virtual_token_reserves,
+            remain_token_reserves: balance::value(&pool.remain_token_reserves),
+            is_completed: pool.is_completed,
             pool_id: object::id<Pool<T>>(pool),
         };
         event::emit<TradedEvent>(tradedEvent);
@@ -299,7 +312,8 @@ module turbospump::turbospump {
     
     public fun create<T>(
         config: &mut Configuration, 
-        mut treasuryCap:coin::TreasuryCap<T>, 
+        mut treasuryCap:coin::TreasuryCap<T>,
+        paymentCoin: Coin<SUI>,
         name: ascii::String, 
         symbol: ascii::String, 
         uri: ascii::String, 
@@ -345,12 +359,6 @@ module turbospump::turbospump {
         // Retrieve the type name for the token T
         let tokenTypeName = type_name::get<T>();
         
-        // Add the new Pool object to the dynamic object field using its address as a key
-        dynamic_object_field::add<ascii::String, Pool<T>>(
-            &mut config.id, 
-            type_name::get_address(&tokenTypeName), 
-            newPool
-        );
         
         // Get the type name for the Pool object
         let poolTypeName = type_name::get<Pool<T>>();
@@ -358,7 +366,11 @@ module turbospump::turbospump {
            
         // Transfer the treasury cap to a designated address (null address in this case)
         transfer::public_transfer<coin::TreasuryCap<T>>(treasuryCap, @0x0);
+
+        let deploymentFee = coin::value(&paymentCoin);
         
+        balance::join(&mut config.protocol_vault, coin::into_balance(paymentCoin));
+
         // Create a CreatedEvent to log the creation of the pool
         let createdEvent = CreatedEvent {
             name: name, 
@@ -372,9 +384,21 @@ module turbospump::turbospump {
             bonding_curve: type_name::get_module(&poolTypeName), 
             pool_id: new_pool_id, 
             created_by: tx_context::sender(txContext), 
+            real_sui_reserves: 0,
+            real_token_reserves: balance::value(&newPool.real_token_reserves),
             virtual_sui_reserves: config.initial_virtual_sui_reserves, 
             virtual_token_reserves: config.initial_virtual_token_reserves, 
+            remain_token_reserves: config.remain_token_reserves,
+            is_completed: false,
+            deployment_fee: deploymentFee,
         };
+
+        // Add the new Pool object to the dynamic object field using its address as a key
+        dynamic_object_field::add<ascii::String, Pool<T>>(
+            &mut config.id, 
+            type_name::get_address(&tokenTypeName), 
+            newPool
+        );
         
         // Emit the created event
         event::emit<CreatedEvent>(createdEvent);
@@ -467,8 +491,12 @@ module turbospump::turbospump {
             sui_amount: suiReceived, 
             token_amount: tokenValue, 
             fee_amount: platformFee,
+            real_sui_reserves: balance::value(&pool.real_sui_reserves),
+            real_token_reserves: balance::value(&pool.real_token_reserves),
             virtual_sui_reserves: pool.virtual_sui_reserves, 
             virtual_token_reserves: pool.virtual_token_reserves, 
+            remain_token_reserves: balance::value(&pool.remain_token_reserves),
+            is_completed: pool.is_completed,
             pool_id: object::id<Pool<T>>(pool), 
         };
         
@@ -583,6 +611,22 @@ module turbospump::turbospump {
             old_admin, 
             new_admin, 
         });
+    }
+
+    public entry fun collect_protocol_fee(
+        _admin_cap: &AdminCap,
+        config: &mut Configuration, 
+        amount_requested: u64,
+        recipient: address,
+        txContext: &mut tx_context::TxContext
+    ) {
+        check_version(config.version);
+
+        let pool_amount = balance::value(&config.protocol_vault);
+        let amount = if (amount_requested > pool_amount) pool_amount else amount_requested;
+        let return_fee = coin::from_balance(balance::split(&mut config.protocol_vault, amount), txContext);
+
+        transfer::public_transfer(return_fee, recipient);
     }
 
     public entry fun skim<T>(
