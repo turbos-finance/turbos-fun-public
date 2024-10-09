@@ -121,12 +121,12 @@ module turbospump::turbospump {
         new_admin: address,
     }
 
-    fun init(txContext: &mut tx_context::TxContext) {
+    fun init(tx_context: &mut tx_context::TxContext) {
         let admin_cap= AdminCap {
-            id: object::new(txContext),
+            id: object::new(tx_context),
         };
         let config = Configuration{
-            id                             : object::new(txContext), 
+            id                             : object::new(tx_context), 
             version                        : 1, 
             admin                          : @0x9563578937da5bd33657306871057dbe50c18900d300ecd97c93c3cbda2262ed, 
             platform_fee                   : 5000, 
@@ -140,7 +140,7 @@ module turbospump::turbospump {
         };
         let admin_cap_id = object::id(&admin_cap);
         let config_id = object::id(&config);
-        transfer::public_transfer(admin_cap, tx_context::sender(txContext));
+        transfer::public_transfer(admin_cap, tx_context::sender(tx_context));
         transfer::public_share_object<Configuration>(config);
 
         event::emit(InitConfigEvent {
@@ -168,132 +168,131 @@ module turbospump::turbospump {
 
     fun swap<T>(
         pool: &mut Pool<T>, 
-        tokenCoin: Coin<T>, 
-        suiCoin: Coin<SUI>, 
-        tokenAmount: u64, 
-        suiAmount: u64, 
-        txContext: &mut tx_context::TxContext
+        token_coin: Coin<T>, 
+        sui_coin: Coin<SUI>, 
+        token_amount: u64, 
+        sui_amount: u64, 
+        tx_context: &mut tx_context::TxContext
     ) : (Coin<T>, Coin<SUI>) {
-        assert!(coin::value<T>(&tokenCoin) > 0 || coin::value<SUI>(&suiCoin) > 0, EIncorrectCoinAmount);
-        if (coin::value<T>(&tokenCoin) > 0) {
-            pool.virtual_token_reserves = pool.virtual_token_reserves - tokenAmount;
+        assert!(coin::value<T>(&token_coin) > 0 || coin::value<SUI>(&sui_coin) > 0, EIncorrectCoinAmount);
+        if (coin::value<T>(&token_coin) > 0) {
+            pool.virtual_token_reserves = pool.virtual_token_reserves - token_amount;
         };
-        if (coin::value<SUI>(&suiCoin) > 0) {
-            pool.virtual_sui_reserves = pool.virtual_sui_reserves - suiAmount;
+        if (coin::value<SUI>(&sui_coin) > 0) {
+            pool.virtual_sui_reserves = pool.virtual_sui_reserves - sui_amount;
         };
         let virtual_token_reserves_last = pool.virtual_token_reserves;
         let virtual_sui_reserves_last = pool.virtual_sui_reserves;
-        pool.virtual_token_reserves = pool.virtual_token_reserves + coin::value<T>(&tokenCoin);
-        pool.virtual_sui_reserves = pool.virtual_sui_reserves + coin::value<SUI>(&suiCoin);
+        pool.virtual_token_reserves = pool.virtual_token_reserves + coin::value<T>(&token_coin);
+        pool.virtual_sui_reserves = pool.virtual_sui_reserves + coin::value<SUI>(&sui_coin);
         check_lp_value_is_increased_or_not_changed(
             virtual_token_reserves_last, 
             virtual_sui_reserves_last, 
             pool.virtual_token_reserves, 
             pool.virtual_sui_reserves
         );
-        balance::join<T>(&mut pool.real_token_reserves, coin::into_balance(tokenCoin));
-        balance::join<SUI>(&mut pool.real_sui_reserves, coin::into_balance(suiCoin));
-        assert!(balance::value(&pool.real_token_reserves) >= tokenAmount, ETokenReservesNotEnough);
-        assert!(balance::value(&pool.real_sui_reserves) >= suiAmount, ESuiReservesNotEnough);
+        balance::join<T>(&mut pool.real_token_reserves, coin::into_balance(token_coin));
+        balance::join<SUI>(&mut pool.real_sui_reserves, coin::into_balance(sui_coin));
+        assert!(balance::value(&pool.real_token_reserves) >= token_amount, ETokenReservesNotEnough);
+        assert!(balance::value(&pool.real_sui_reserves) >= sui_amount, ESuiReservesNotEnough);
         (
-            coin::from_balance(balance::split<T>(&mut pool.real_token_reserves, tokenAmount), txContext), 
-            coin::from_balance(balance::split<SUI>(&mut pool.real_sui_reserves, suiAmount), txContext)
+            coin::from_balance(balance::split<T>(&mut pool.real_token_reserves, token_amount), tx_context), 
+            coin::from_balance(balance::split<SUI>(&mut pool.real_sui_reserves, sui_amount), tx_context)
         )
     }
 
     public entry fun buy<T>(
         config: &mut Configuration,
-        paymentCoin: Coin<SUI>,
+        payment_coin: Coin<SUI>,
         amount: u64,
         amount_threshold: u64,
         is_exact_in: bool,
         clock: &clock::Clock,
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
-        let sender = tx_context::sender(txContext);
-        let (remainingSuiCoin, boughtTokenCoin) = buy_with_return(
+        let sender = tx_context::sender(tx_context);
+        let (remaining_sui_coin, bought_token_coin) = buy_with_return(
             config,
-            paymentCoin,
+            payment_coin,
             amount,
             amount_threshold,
             is_exact_in,
             clock,
-            txContext
+            tx_context
         );
-        transfer::public_transfer<Coin<SUI>>(remainingSuiCoin, sender);
-        transfer::public_transfer<Coin<T>>(boughtTokenCoin, sender);
+        transfer::public_transfer<Coin<SUI>>(remaining_sui_coin, sender);
+        transfer::public_transfer<Coin<T>>(bought_token_coin, sender);
     }
 
     public fun buy_with_return<T>(
         config: &mut Configuration,
-        mut paymentCoin: Coin<SUI>,
+        mut payment_coin: Coin<SUI>,
         amount: u64,
         amount_threshold: u64,
         is_exact_in: bool,
         clock: &clock::Clock,
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ): (Coin<SUI>, Coin<T>) {
         check_version(config.version);
 
-        let sender = tx_context::sender(txContext);
-        let typeName = type_name::get<T>();
+        let sender = tx_context::sender(tx_context);
+        let type_name = type_name::get<T>();
         let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
             &mut config.id,
-            type_name::get_address(&typeName)
+            type_name::get_address(&type_name)
         );
         assert!(!pool.is_completed, EPoolNotCompleted);
         assert!(amount > 0, EIncorrectCoinAmount);
-        let paymentCoinValue = coin::value<SUI>(&paymentCoin);
-        let availableTokenAmount = pool.virtual_token_reserves - balance::value<T>(&pool.remain_token_reserves);
-        let platformFee;
-        let platformFeeSuiCoin;
-        let tokenAmountToBuy;
+        let payment_coinValue = coin::value<SUI>(&payment_coin);
+        let available_token_amount = pool.virtual_token_reserves - balance::value<T>(&pool.remain_token_reserves);
+        let platform_fee;
+        let token_amount_to_buy;
         let suiCost;
         if (is_exact_in) {
-            platformFee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
-            suiCost = amount - platformFee;
-            tokenAmountToBuy = curves::calculate_token_return(
+            platform_fee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
+            suiCost = amount - platform_fee;
+            token_amount_to_buy = curves::calculate_token_return(
                 suiCost,
                 pool.virtual_sui_reserves,
                 pool.virtual_token_reserves,
             );
-            assert(tokenAmountToBuy >= amount_threshold, EAmountOutBelowMinimum);
+            assert!(token_amount_to_buy >= amount_threshold, EAmountOutBelowMinimum);
         } else {
-            tokenAmountToBuy = std::u64::min(amount, availableTokenAmount);
+            token_amount_to_buy = std::u64::min(amount, available_token_amount);
             suiCost = curves::calculate_liquidity_cost(
                 pool.virtual_sui_reserves,
                 pool.virtual_token_reserves,
-                tokenAmountToBuy
+                token_amount_to_buy
             );
-            platformFee = full_math_u64::mul_div_ceil(suiCost, config.platform_fee, FEE_RATE_SCALE);
-            assert(suiCost <= amount_threshold, EAmountInAboveMaximum);
+            platform_fee = full_math_u64::mul_div_ceil(suiCost, config.platform_fee, FEE_RATE_SCALE);
+            assert!(suiCost <= amount_threshold, EAmountInAboveMaximum);
         };
-        assert!(paymentCoinValue >= suiCost + platformFee, ESuiAmountNotEnough);
-        let platformFeeSuiCoin = coin::split<SUI>(&mut paymentCoin, platformFee, txContext);
-        balance::join(&mut config.protocol_vault, coin::into_balance(platformFeeSuiCoin));
-        let (boughtTokenCoin, remainingSuiCoin) = swap<T>(
+        assert!(payment_coinValue >= suiCost + platform_fee, ESuiAmountNotEnough);
+        let platform_fee_sui_coin = coin::split<SUI>(&mut payment_coin, platform_fee, tx_context);
+        balance::join(&mut config.protocol_vault, coin::into_balance(platform_fee_sui_coin));
+        let (bought_token_coin, remaining_sui_coin) = swap<T>(
             pool,
-            coin::zero<T>(txContext),
-            paymentCoin,
-            tokenAmountToBuy,
-            paymentCoinValue - suiCost - platformFee,
-            txContext
+            coin::zero<T>(tx_context),
+            payment_coin,
+            token_amount_to_buy,
+            payment_coinValue - suiCost - platform_fee,
+            tx_context
         );
 
-        pool.virtual_token_reserves = pool.virtual_token_reserves - coin::value<T>(&boughtTokenCoin);
-        if (availableTokenAmount == tokenAmountToBuy || balance::value<SUI>(&pool.real_sui_reserves) >= config.fair_launch_sui_amount) {
+        pool.virtual_token_reserves = pool.virtual_token_reserves - coin::value<T>(&bought_token_coin);
+        if (available_token_amount == token_amount_to_buy || balance::value<SUI>(&pool.real_sui_reserves) >= config.fair_launch_sui_amount) {
             let admin = config.admin;
             let graduated_fee = config.graduated_fee;
-            transfer_pool<T>(pool, admin, graduated_fee, clock, txContext);
+            transfer_pool<T>(pool, admin, graduated_fee, clock, tx_context);
         };
         let tradedEvent = TradedEvent{
             is_buy: true,
             user: sender,
-            token_address: type_name::into_string(typeName),
+            token_address: type_name::into_string(type_name),
             sui_amount: suiCost,
-            token_amount: tokenAmountToBuy,
-            fee_amount: platformFee,
+            token_amount: token_amount_to_buy,
+            fee_amount: platform_fee,
             real_sui_reserves: balance::value(&pool.real_sui_reserves),
             real_token_reserves: balance::value(&pool.real_token_reserves),
             virtual_sui_reserves: pool.virtual_sui_reserves,
@@ -305,15 +304,15 @@ module turbospump::turbospump {
         event::emit<TradedEvent>(tradedEvent);
 
         (
-            remainingSuiCoin,
-            boughtTokenCoin
+            remaining_sui_coin,
+            bought_token_coin
         )
     }
     
     public fun create<T>(
         config: &mut Configuration, 
-        mut treasuryCap:coin::TreasuryCap<T>,
-        paymentCoin: Coin<SUI>,
+        mut treasury_cap:coin::TreasuryCap<T>,
+        payment_coin: Coin<SUI>,
         name: ascii::String, 
         symbol: ascii::String, 
         uri: ascii::String, 
@@ -322,7 +321,7 @@ module turbospump::turbospump {
         telegram: ascii::String, 
         website: ascii::String, 
         _clock: &clock::Clock, 
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
 
@@ -334,45 +333,45 @@ module turbospump::turbospump {
         assert!(ascii::length(&website) <= 500, EInvalidCreateParams);
         
         // Ensure the total supply of the token is zero
-        assert!(coin::total_supply<T>(&treasuryCap) == 0, EInvalidCoinTreasuryCap);
+        assert!(coin::total_supply<T>(&treasury_cap) == 0, EInvalidCoinTreasuryCap);
         
         // Create a new Pool object with initial configurations
-        let newPool = Pool<T> {
-            id: object::new(txContext), 
+        let new_pool = Pool<T> {
+            id: object::new(tx_context), 
             real_sui_reserves: balance::zero<SUI>(), 
             real_token_reserves: coin::into_balance(coin::mint<T>(
-                &mut treasuryCap, 
+                &mut treasury_cap, 
                 config.initial_virtual_token_reserves - config.remain_token_reserves, 
-                txContext
+                tx_context
             )), 
             virtual_token_reserves: config.initial_virtual_token_reserves, 
             virtual_sui_reserves: config.initial_virtual_sui_reserves, 
             remain_token_reserves: coin::into_balance(coin::mint<T>(
-                &mut treasuryCap, 
+                &mut treasury_cap, 
                 config.remain_token_reserves, 
-                txContext
+                tx_context
             )), 
             is_completed: false,
         };
-        let new_pool_id = object::id<Pool<T>>(&newPool);
+        let new_pool_id = object::id<Pool<T>>(&new_pool);
         
         // Retrieve the type name for the token T
-        let tokenTypeName = type_name::get<T>();
+        let token_type_name = type_name::get<T>();
         
         
         // Get the type name for the Pool object
-        let poolTypeName = type_name::get<Pool<T>>();
+        let pool_type_name = type_name::get<Pool<T>>();
 
            
         // Transfer the treasury cap to a designated address (null address in this case)
-        transfer::public_transfer<coin::TreasuryCap<T>>(treasuryCap, @0x0);
+        transfer::public_transfer<coin::TreasuryCap<T>>(treasury_cap, @0x0);
 
-        let deploymentFee = coin::value(&paymentCoin);
+        let deployment_fee = coin::value(&payment_coin);
         
-        balance::join(&mut config.protocol_vault, coin::into_balance(paymentCoin));
+        balance::join(&mut config.protocol_vault, coin::into_balance(payment_coin));
 
         // Create a CreatedEvent to log the creation of the pool
-        let createdEvent = CreatedEvent {
+        let created_event = CreatedEvent {
             name: name, 
             symbol: symbol, 
             uri: uri, 
@@ -380,117 +379,117 @@ module turbospump::turbospump {
             twitter: twitter, 
             telegram: telegram, 
             website: website, 
-            token_address: type_name::into_string(tokenTypeName), 
-            bonding_curve: type_name::get_module(&poolTypeName), 
+            token_address: type_name::into_string(token_type_name), 
+            bonding_curve: type_name::get_module(&pool_type_name), 
             pool_id: new_pool_id, 
-            created_by: tx_context::sender(txContext), 
+            created_by: tx_context::sender(tx_context), 
             real_sui_reserves: 0,
-            real_token_reserves: balance::value(&newPool.real_token_reserves),
+            real_token_reserves: balance::value(&new_pool.real_token_reserves),
             virtual_sui_reserves: config.initial_virtual_sui_reserves, 
             virtual_token_reserves: config.initial_virtual_token_reserves, 
             remain_token_reserves: config.remain_token_reserves,
             is_completed: false,
-            deployment_fee: deploymentFee,
+            deployment_fee: deployment_fee,
         };
 
         // Add the new Pool object to the dynamic object field using its address as a key
         dynamic_object_field::add<ascii::String, Pool<T>>(
             &mut config.id, 
-            type_name::get_address(&tokenTypeName), 
-            newPool
+            type_name::get_address(&token_type_name), 
+            new_pool
         );
         
         // Emit the created event
-        event::emit<CreatedEvent>(createdEvent);
+        event::emit<CreatedEvent>(created_event);
     }
 
     public entry fun sell<T>(
         config: &mut Configuration, 
-        tokenCoin: Coin<T>, 
+        token_coin: Coin<T>, 
         amount: u64, 
         amount_threshold: u64,
         is_exact_in: bool,
         clock: &clock::Clock, 
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
-        let sender = tx_context::sender(txContext);
-        let (suiCoinReturned, remainingTokenCoin) = sell_with_return(
+        let sender = tx_context::sender(tx_context);
+        let (sui_coin_returned, remaining_token_coin) = sell_with_return(
             config,
-            tokenCoin,
+            token_coin,
             amount,
             amount_threshold,
             is_exact_in,
             clock,
-            txContext
+            tx_context
         );
-        transfer::public_transfer<Coin<T>>(remainingTokenCoin, sender);
-        transfer::public_transfer<Coin<SUI>>(suiCoinReturned, sender);
+        transfer::public_transfer<Coin<T>>(remaining_token_coin, sender);
+        transfer::public_transfer<Coin<SUI>>(sui_coin_returned, sender);
     }
     
     public fun sell_with_return<T>(
         config: &mut Configuration, 
-        tokenCoin: Coin<T>, 
+        token_coin: Coin<T>, 
         amount: u64, 
         amount_threshold: u64,
         is_exact_in: bool,
         _clock: &clock::Clock, 
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ): (Coin<SUI>, Coin<T>) {
         check_version(config.version);
 
-        let tokenTypeName = type_name::get<T>();
+        let token_type_name = type_name::get<T>();
         let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
             &mut config.id, 
-            type_name::get_address(&tokenTypeName)
+            type_name::get_address(&token_type_name)
         );
         
         assert!(!pool.is_completed, EPoolNotCompleted);
-        let tokenValue = coin::value<T>(&tokenCoin);
+        let tokenValue = coin::value<T>(&token_coin);
         assert!(tokenValue > 0, EIncorrectCoinAmount);
 
-        let tokenAmountToSell;
-        let platformFee;
-        let suiReceived;
+        let token_amount_to_sell;
+        let platform_fee;
+        let sui_received;
         if (is_exact_in) {
-            tokenAmountToSell = amount;
-            suiReceived = curves::calculate_sui_return(
-                tokenAmountToSell,
+            token_amount_to_sell = amount;
+            sui_received = curves::calculate_sui_return(
+                token_amount_to_sell,
                 pool.virtual_sui_reserves, 
                 pool.virtual_token_reserves,
             );
-            platformFee = full_math_u64::mul_div_ceil(suiReceived, config.platform_fee, FEE_RATE_SCALE);
-            assert!(suiReceived - platformFee >= amount_threshold, EAmountOutBelowMinimum);
+            platform_fee = full_math_u64::mul_div_ceil(sui_received, config.platform_fee, FEE_RATE_SCALE);
+            assert!(sui_received - platform_fee >= amount_threshold, EAmountOutBelowMinimum);
         } else {
-            platformFee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
-            suiReceived = amount + platformFee;
-            tokenAmountToSell = curves::calculate_token_return(
-                suiReceived,
+            platform_fee = full_math_u64::mul_div_ceil(amount, config.platform_fee, FEE_RATE_SCALE);
+            sui_received = amount + platform_fee;
+            token_amount_to_sell = curves::calculate_token_return(
+                sui_received,
                 pool.virtual_sui_reserves,
                 pool.virtual_token_reserves,
             );
-            assert(tokenAmountToSell < amount_threshold, EAmountInAboveMaximum);
+            assert!(token_amount_to_sell < amount_threshold, EAmountInAboveMaximum);
 
         };
         
-        let (remainingTokenCoin,mut suiCoinReturned) = swap<T>(
+        let (remaining_token_coin,mut sui_coin_returned) = swap<T>(
             pool, 
-            tokenCoin,
-            coin::zero<SUI>(txContext), 
-            tokenValue - tokenAmountToSell, 
-            suiReceived, 
-            txContext
+            token_coin,
+            coin::zero<SUI>(tx_context), 
+            tokenValue - token_amount_to_sell, 
+            sui_received, 
+            tx_context
         );
-        pool.virtual_sui_reserves = pool.virtual_sui_reserves - coin::value<SUI>(&suiCoinReturned);
-        balance::join(&mut config.protocol_vault, coin::into_balance(coin::split<SUI>(&mut suiCoinReturned, platformFee, txContext)));
+        pool.virtual_sui_reserves = pool.virtual_sui_reserves - coin::value<SUI>(&sui_coin_returned);
+        balance::join(&mut config.protocol_vault, coin::into_balance(coin::split<SUI>(&mut sui_coin_returned, platform_fee, tx_context)));
         
-        let tradeEvent = TradedEvent {
+        let trade_event = TradedEvent {
             is_buy: false, 
-            user: tx_context::sender(txContext), 
-            token_address: type_name::into_string(tokenTypeName), 
-            sui_amount: suiReceived, 
+            user: tx_context::sender(tx_context), 
+            token_address: type_name::into_string(token_type_name), 
+            sui_amount: sui_received, 
             token_amount: tokenValue, 
-            fee_amount: platformFee,
+            fee_amount: platform_fee,
             real_sui_reserves: balance::value(&pool.real_sui_reserves),
             real_token_reserves: balance::value(&pool.real_token_reserves),
             virtual_sui_reserves: pool.virtual_sui_reserves, 
@@ -500,9 +499,9 @@ module turbospump::turbospump {
             pool_id: object::id<Pool<T>>(pool), 
         };
         
-        event::emit<TradedEvent>(tradeEvent);
+        event::emit<TradedEvent>(trade_event);
         
-        (suiCoinReturned, remainingTokenCoin)
+        (sui_coin_returned, remaining_token_coin)
     }
 
     fun check_lp_value_is_increased_or_not_changed(
@@ -517,21 +516,21 @@ module turbospump::turbospump {
     fun transfer_pool<T>(
         pool: &mut Pool<T>,
         recipient: address, 
-        _graduatedFee: u64, 
+        _graduated_fee: u64, 
         _clock: &clock::Clock, 
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         pool.is_completed = true;
 
         let real_token_reserves_amount = balance::value<T>(&pool.real_token_reserves);
-        let mut combinedTokenReserves = balance::split<T>(
+        let mut combined_token_teserves = balance::split<T>(
             &mut pool.real_token_reserves, 
             real_token_reserves_amount, 
         );
 
         let remain_token_reserves_amount = balance::value<T>(&pool.remain_token_reserves);
         balance::join<T>(
-            &mut combinedTokenReserves, 
+            &mut combined_token_teserves, 
             balance::split<T>(
                 &mut pool.remain_token_reserves, 
                 remain_token_reserves_amount,
@@ -543,64 +542,64 @@ module turbospump::turbospump {
             coin::from_balance(balance::split<SUI>(
                 &mut pool.real_sui_reserves, 
                 real_sui_reserves_amount, 
-            ), txContext), 
+            ), tx_context), 
             recipient,
         );
 
         transfer::public_transfer<Coin<T>>(
-            coin::from_balance(combinedTokenReserves, txContext), 
+            coin::from_balance(combined_token_teserves, tx_context), 
             recipient,
         );
 
-        let poolCompletedEvent = PoolCompletedEvent {
+        let pool_completed_event = PoolCompletedEvent {
             token_address: type_name::into_string(type_name::get<T>()), 
             lp: ascii::string(b"0x0"),
         };
 
-        event::emit<PoolCompletedEvent>(poolCompletedEvent);
+        event::emit<PoolCompletedEvent>(pool_completed_event);
     }
 
     public entry fun update_config(
         _admin_cap: &AdminCap,
         config: &mut Configuration, 
-        newPlatformFee: u64, 
-        newGraduatedFee: u64, 
-        newInitialVirtualSuiReserves: u64, 
-        newInitialVirtualTokenReserves: u64, 
-        newRemainTokenReserves: u64, 
-        newTokenDecimals: u8,
-        newFairLaunchSuiAmount: u64,
+        new_platform_fee: u64, 
+        new_graduated_fee: u64, 
+        new_initial_virtual_sui_reserves: u64, 
+        new_initial_virtual_token_reserves: u64, 
+        new_remain_token_reserves: u64, 
+        new_token_decimals: u8,
+        new_fair_launch_sui_amount: u64,
         _clock: &clock::Clock, 
-        _txContext: &mut tx_context::TxContext
+        _tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
 
-        config.platform_fee = newPlatformFee;
-        config.graduated_fee = newGraduatedFee;
-        config.initial_virtual_sui_reserves = newInitialVirtualSuiReserves;
-        config.initial_virtual_token_reserves = newInitialVirtualTokenReserves;
-        config.remain_token_reserves = newRemainTokenReserves;
-        config.token_decimals = newTokenDecimals;
-        config.fair_launch_sui_amount = newFairLaunchSuiAmount;
+        config.platform_fee = new_platform_fee;
+        config.graduated_fee = new_graduated_fee;
+        config.initial_virtual_sui_reserves = new_initial_virtual_sui_reserves;
+        config.initial_virtual_token_reserves = new_initial_virtual_token_reserves;
+        config.remain_token_reserves = new_remain_token_reserves;
+        config.token_decimals = new_token_decimals;
+        config.fair_launch_sui_amount = new_fair_launch_sui_amount;
 
-        let configChangedEvent = ConfigChangedEvent {
-            platform_fee: newPlatformFee,
-            graduated_fee: newGraduatedFee,
-            initial_virtual_sui_reserves: newInitialVirtualSuiReserves,
-            initial_virtual_token_reserves: newInitialVirtualTokenReserves,
-            remain_token_reserves: newRemainTokenReserves,
-            token_decimals: newTokenDecimals,
-            fair_launch_sui_amount: newFairLaunchSuiAmount,
+        let config_changed_event = ConfigChangedEvent {
+            platform_fee: new_platform_fee,
+            graduated_fee: new_graduated_fee,
+            initial_virtual_sui_reserves: new_initial_virtual_sui_reserves,
+            initial_virtual_token_reserves: new_initial_virtual_token_reserves,
+            remain_token_reserves: new_remain_token_reserves,
+            token_decimals: new_token_decimals,
+            fair_launch_sui_amount: new_fair_launch_sui_amount,
         };
 
-        event::emit<ConfigChangedEvent>(configChangedEvent);
+        event::emit<ConfigChangedEvent>(config_changed_event);
     }
 
     public entry fun transfer_admin(
         _admin_cap: &AdminCap,
         config: &mut Configuration, 
         new_admin: address,
-        _txContext: &mut tx_context::TxContext
+        _tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
 
@@ -618,13 +617,13 @@ module turbospump::turbospump {
         config: &mut Configuration, 
         amount_requested: u64,
         recipient: address,
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
 
         let pool_amount = balance::value(&config.protocol_vault);
         let amount = if (amount_requested > pool_amount) pool_amount else amount_requested;
-        let return_fee = coin::from_balance(balance::split(&mut config.protocol_vault, amount), txContext);
+        let return_fee = coin::from_balance(balance::split(&mut config.protocol_vault, amount), tx_context);
 
         transfer::public_transfer(return_fee, recipient);
     }
@@ -632,14 +631,14 @@ module turbospump::turbospump {
     public entry fun skim<T>(
         _admin_cap: &AdminCap,
         config: &mut Configuration, 
-        txContext: &mut tx_context::TxContext
+        tx_context: &mut tx_context::TxContext
     ) {
         check_version(config.version);
 
-        let tokenTypeName = type_name::get<T>();
+        let token_type_name = type_name::get<T>();
         let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
             &mut config.id, 
-            type_name::get_address(&tokenTypeName)
+            type_name::get_address(&token_type_name)
         );
         
         assert!(pool.is_completed, EPoolNotCompleted);
@@ -652,7 +651,7 @@ module turbospump::turbospump {
                     &mut pool.real_sui_reserves, 
                     real_sui_reserves_amount, 
                 ), 
-                txContext
+                tx_context
             ),
             config.admin
         );
@@ -663,7 +662,7 @@ module turbospump::turbospump {
                     &mut pool.real_token_reserves, 
                     real_token_reserves_amount, 
                 ), 
-                txContext
+                tx_context
             ),
             config.admin
         );
