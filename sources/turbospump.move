@@ -284,8 +284,8 @@ module turbospump::turbospump {
                 pool.virtual_sui_reserves,
                 pool.virtual_token_reserves,
             );
-            assert!(available_token_amount >= amount_threshold, EAmountOutBelowMinimum);
-            assert!(token_amount_to_buy >= token_amount_to_buy, ETokenReservesNotEnough);
+            assert!(token_amount_to_buy >= amount_threshold, EAmountOutBelowMinimum);
+            assert!(available_token_amount >= token_amount_to_buy, ETokenReservesNotEnough);
         } else {
             token_amount_to_buy = std::u64::min(amount, available_token_amount);
             suiCost = curves::calculate_liquidity_cost(
@@ -502,8 +502,6 @@ module turbospump::turbospump {
             sui_received,
             tx_context
         );
-
-        pool.virtual_sui_reserves = pool.virtual_sui_reserves - coin::value<SUI>(&sui_coin_returned);
         balance::join(&mut config.protocol_vault, coin::into_balance(coin::split<SUI>(&mut sui_coin_returned, platform_fee, tx_context)));
         
         let trade_event = TradedEvent {
