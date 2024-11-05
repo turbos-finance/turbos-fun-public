@@ -2,6 +2,7 @@ module turbospump::turbospump {
     use turbospump::curves;
     use turbospump::full_math_u64;
     use std::ascii;
+    use std::string;
     use std::type_name;
     use sui::clock;
     use sui::coin::{Self, Coin};
@@ -27,6 +28,7 @@ module turbospump::turbospump {
     const ESuiReservesNotEnough: u64 = 10; 
     const ETokenAmountNotEnough: u64 = 11;
     const EDeploymentFeeAmountNotEnough: u64 = 12;
+    const EPoolIsCompleted: u64 = 13;
 
     public struct AdminCap has store, key {
 	    id: UID
@@ -54,7 +56,8 @@ module turbospump::turbospump {
         virtual_sui_reserves: u64,
         remain_token_reserves: Balance<T>,
         is_completed: bool,
-        token_supply: Supply<T>,
+        token_supply: Option<Supply<T>>,
+        lp_type: u8,
     }
 
     public struct SetPackageVersion has copy, drop {
@@ -81,7 +84,7 @@ module turbospump::turbospump {
         name: ascii::String,
         symbol: ascii::String,
         uri: ascii::String,
-        description: ascii::String,
+        description: string::String,
         twitter: ascii::String,
         telegram: ascii::String,
         website: ascii::String,
@@ -97,11 +100,18 @@ module turbospump::turbospump {
         is_completed: bool,
         deployment_fee: u64,
         token_supply: u64,
+        lp_type: u8,
     }
     
     public struct PoolCompletedEvent has copy, drop, store {
         token_address: ascii::String,
         pool_id: object::ID,
+    }
+
+    public struct PoolMigradedEvent has copy, drop, store {
+        token_address: ascii::String,
+        pool_id: object::ID,
+        clmm_pool_id: object::ID,
     }
     
     public struct TradedEvent has copy, drop, store {
@@ -132,10 +142,10 @@ module turbospump::turbospump {
         let config = Configuration{
             id                             : object::new(tx_context), 
             version                        : 1, 
-            admin                          : @0x9563578937da5bd33657306871057dbe50c18900d300ecd97c93c3cbda2262ed, 
+            admin                          : @0x0, 
             platform_fee                   : 5000, 
             deployment_fee                 : 500_000_000,
-            initial_virtual_sui_reserves   : 3_000_000_000_000, 
+            initial_virtual_sui_reserves   : 1_500_000_000_000, 
             initial_virtual_token_reserves : 10_000_000_000_000_000, 
             remain_token_reserves          : 2_000_000_000_000_000,
             token_decimals                 : 6,
@@ -269,7 +279,7 @@ module turbospump::turbospump {
             &mut config.id,
             type_name::get_address(&type_name)
         );
-        assert!(!pool.is_completed, EPoolNotCompleted);
+        assert!(!pool.is_completed, EPoolIsCompleted);
         assert!(amount > 0, EIncorrectCoinAmount);
         let payment_coinValue = coin::value<SUI>(&payment_coin);
         let available_token_amount = pool.virtual_token_reserves - balance::value<T>(&pool.remain_token_reserves);
@@ -308,7 +318,7 @@ module turbospump::turbospump {
 
         if (available_token_amount == token_amount_to_buy || balance::value<SUI>(&pool.real_sui_reserves) >= config.fair_launch_sui_amount) {
             let admin = config.admin;
-            transfer_pool<T>(pool, admin, clock, tx_context);
+            complete_pool<T>(pool, admin, clock, tx_context);
         };
         let tradedEvent = TradedEvent{
             is_buy: true,
@@ -340,10 +350,11 @@ module turbospump::turbospump {
         name: ascii::String, 
         symbol: ascii::String, 
         uri: ascii::String, 
-        description: ascii::String, 
+        description: string::String, 
         twitter: ascii::String, 
         telegram: ascii::String, 
-        website: ascii::String, 
+        website: ascii::String,
+        lp_type: u8,
         _clock: &clock::Clock, 
         tx_context: &mut tx_context::TxContext
     ) {
@@ -351,7 +362,7 @@ module turbospump::turbospump {
 
         // Validate the lengths of the string parameters
         assert!(ascii::length(&uri) <= 300, EInvalidCreateParams);
-        assert!(ascii::length(&description) <= 1000, EInvalidCreateParams);
+        assert!(string::length(&description) <= 1000, EInvalidCreateParams);
         assert!(ascii::length(&twitter) <= 500, EInvalidCreateParams);
         assert!(ascii::length(&telegram) <= 500, EInvalidCreateParams);
         assert!(ascii::length(&website) <= 500, EInvalidCreateParams);
@@ -379,7 +390,8 @@ module turbospump::turbospump {
                 tx_context
             )), 
             is_completed: false,
-            token_supply: coin::treasury_into_supply(treasury_cap),
+            token_supply: option::none(),
+            lp_type: lp_type,
         };
         let new_pool_id = object::id<Pool<T>>(&new_pool);
         
@@ -412,7 +424,8 @@ module turbospump::turbospump {
             remain_token_reserves: config.remain_token_reserves,
             is_completed: false,
             deployment_fee: deployment_fee,
-            token_supply: balance::supply_value(&new_pool.token_supply),
+            token_supply: config.initial_virtual_token_reserves,
+            lp_type: lp_type,
         };
 
         // Add the new Pool object to the dynamic object field using its address as a key
@@ -421,6 +434,8 @@ module turbospump::turbospump {
             type_name::get_address(&token_type_name), 
             new_pool
         );
+
+        transfer::public_transfer(treasury_cap, @0x0);
         
         // Emit the created event
         event::emit<CreatedEvent>(created_event);
@@ -467,7 +482,7 @@ module turbospump::turbospump {
             type_name::get_address(&token_type_name)
         );
         
-        assert!(!pool.is_completed, EPoolNotCompleted);
+        assert!(!pool.is_completed, EPoolIsCompleted);
         let tokenValue = coin::value<T>(&token_coin);
         assert!(tokenValue > 0, EIncorrectCoinAmount);
 
@@ -533,14 +548,21 @@ module turbospump::turbospump {
     ) {
         assert!((virtual_token_reserves_last as u128) * (virtual_sui_reserves_last as u128) <= (virtual_token_reserves as u128) * (virtual_sui_reserves as u128), EIncorrectLP);
     }
-    
-    fun transfer_pool<T>(
-        pool: &mut Pool<T>,
-        recipient: address, 
-        _clock: &clock::Clock, 
+
+    public fun migrate_pool_with_return<T>(
+        _admin_cap: &AdminCap,
+        config: &mut Configuration, 
         tx_context: &mut tx_context::TxContext
-    ) {
-        pool.is_completed = true;
+    ): (Coin<T>, Coin<SUI>) {
+        check_version(config.version);
+
+        let token_type_name = type_name::get<T>();
+        let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
+            &mut config.id, 
+            type_name::get_address(&token_type_name)
+        );
+        
+        assert!(pool.is_completed, EPoolNotCompleted);
 
         let real_token_reserves_amount = balance::value<T>(&pool.real_token_reserves);
         let mut combined_token_reserves = balance::split<T>(
@@ -556,20 +578,74 @@ module turbospump::turbospump {
                 remain_token_reserves_amount,
             )
         );
+        let token_reserves = coin::from_balance(combined_token_reserves, tx_context);
 
         let real_sui_reserves_amount = balance::value<SUI>(&pool.real_sui_reserves);
-        transfer::public_transfer<Coin<SUI>>(
-            coin::from_balance(balance::split<SUI>(
-                &mut pool.real_sui_reserves, 
-                real_sui_reserves_amount, 
-            ), tx_context), 
-            recipient,
-        );
+        let real_sui_reserves = coin::from_balance(balance::split<SUI>(
+            &mut pool.real_sui_reserves, 
+            real_sui_reserves_amount, 
+        ), tx_context);
 
-        transfer::public_transfer<Coin<T>>(
-            coin::from_balance(combined_token_reserves, tx_context), 
-            recipient,
+        (token_reserves, real_sui_reserves)
+    }
+
+    public fun pool_migrated<T>(
+        _admin_cap: &AdminCap,
+        config: &mut Configuration,
+        clmm_pool_id: ID,
+        _tx_context: &mut tx_context::TxContext
+    ) {
+        let token_type_name = type_name::get<T>();
+        let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
+            &mut config.id, 
+            type_name::get_address(&token_type_name)
         );
+        
+        assert!(pool.is_completed, EPoolNotCompleted);
+        event::emit<PoolMigradedEvent>(PoolMigradedEvent {
+            token_address: type_name::into_string(token_type_name), 
+            pool_id: object::id(pool),
+            clmm_pool_id: clmm_pool_id,
+        });
+    }
+
+    public fun collect_pool_with_return<T>(
+        _admin_cap: &AdminCap,
+        config: &mut Configuration,
+        token_amount: u64,
+        sui_amount: u64,
+        tx_context: &mut tx_context::TxContext
+    ): (Coin<T>, Coin<SUI>) {
+        check_version(config.version);
+
+        let token_type_name = type_name::get<T>();
+        let pool = dynamic_object_field::borrow_mut<ascii::String, Pool<T>>(
+            &mut config.id, 
+            type_name::get_address(&token_type_name)
+        );
+        
+        assert!(pool.is_completed, EPoolNotCompleted);
+
+        let token_return = coin::from_balance(balance::split<T>(
+            &mut pool.real_token_reserves, 
+            token_amount, 
+        ), tx_context);
+
+        let sui_return = coin::from_balance(balance::split<SUI>(
+            &mut pool.real_sui_reserves, 
+            sui_amount, 
+        ), tx_context);
+
+        (token_return, sui_return)
+    }
+    
+    fun complete_pool<T>(
+        pool: &mut Pool<T>,
+        _recipient: address, 
+        _clock: &clock::Clock, 
+        _tx_context: &mut tx_context::TxContext
+    ) {
+        pool.is_completed = true;
 
         let pool_completed_event = PoolCompletedEvent {
             token_address: type_name::into_string(type_name::get<T>()), 
