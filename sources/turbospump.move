@@ -108,7 +108,7 @@ module turbospump::turbospump {
         pool_id: object::ID,
     }
 
-    public struct PoolMigradedEvent has copy, drop, store {
+    public struct PoolMigratedEvent has copy, drop, store {
         token_address: ascii::String,
         pool_id: object::ID,
         clmm_pool_id: object::ID,
@@ -602,7 +602,7 @@ module turbospump::turbospump {
         );
         
         assert!(pool.is_completed, EPoolNotCompleted);
-        event::emit<PoolMigradedEvent>(PoolMigradedEvent {
+        event::emit<PoolMigratedEvent>(PoolMigratedEvent {
             token_address: type_name::into_string(token_type_name), 
             pool_id: object::id(pool),
             clmm_pool_id: clmm_pool_id,
