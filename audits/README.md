@@ -1,5 +1,8 @@
 # Audit evidence - Turbos Fun
 
+Audit PDFs retain their original authors' copyright and terms. The repository's MIT
+license applies to Turbos-owned source and documentation; it does not relicense third-party reports.
+
 The original [MoveBit report](movebit-fun-2024.pdf) is preserved without modification.
 
 | Item | Evidence |
