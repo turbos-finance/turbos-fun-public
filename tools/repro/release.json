@@ -1,0 +1,10 @@
+{
+  "project": "fun",
+  "repository": "https://github.com/turbos-finance/turbos-fun-public",
+  "sourceCommit": "7a5f81eeff29ec6baf53ee36dc84f512fb8c663d",
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "packageName": "TurbosPump",
+  "version": 1,
+  "frameworkLegacy": "25804c243d07dd73c0d199e7794383bd855cd436",
+  "frameworkCurrent": "a9a6825eaf6273cc819ee3bcf65fd4909f7624a9"
+}
