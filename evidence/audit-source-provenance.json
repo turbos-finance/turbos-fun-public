@@ -1,0 +1,57 @@
+{
+  "project": "fun",
+  "anchors": [
+    {
+      "originalRevision": "d0c0ef13cc319696de9b605b3245ee70f96133a3",
+      "publication": "https://github.com/turbos-finance/turbos-fun-public/tree/d0c0ef13cc319696de9b605b3245ee70f96133a3",
+      "files": [
+        {
+          "path": "sources/curves.move",
+          "sha256": "d297acf8931e2b13f5e3275ee62a757091f2dc000c1c40a09fbd2a3608af482c",
+          "gitBlob": "105d612519cc789c73b305770e104e07289b978a"
+        },
+        {
+          "path": "sources/full_math_u64.move",
+          "sha256": "24ff8fbd3c3e6e82c67b65651b258803ce30bc1d90104651b986a393fe135f95",
+          "gitBlob": "6e48858d0a5f77fe81e4d4a51f657bfbe42b1e55"
+        },
+        {
+          "path": "sources/turbospump.move",
+          "sha256": "1c558cedb4d6c8e226564e11a59e72af28fc7291d1fe73aeb566e4baef5aeecd",
+          "gitBlob": "bce9a753c91f2df57938887faa6f941cc3e91177"
+        },
+        {
+          "path": "tests/turbospump_tests.move",
+          "sha256": "918b6e7893e4115161435d0e595b69fbf99e55128505b3f51bb8262a977c9a64",
+          "gitBlob": "379772d749162fac8cbd4623f3ab2ea1010f10b0"
+        }
+      ]
+    },
+    {
+      "originalRevision": "662821f6fd721f89fe496dcdee3fbb5cc1408e53",
+      "publication": "https://github.com/turbos-finance/turbos-fun-public/tree/662821f6fd721f89fe496dcdee3fbb5cc1408e53",
+      "files": [
+        {
+          "path": "sources/curves.move",
+          "sha256": "d297acf8931e2b13f5e3275ee62a757091f2dc000c1c40a09fbd2a3608af482c",
+          "gitBlob": "105d612519cc789c73b305770e104e07289b978a"
+        },
+        {
+          "path": "sources/full_math_u64.move",
+          "sha256": "24ff8fbd3c3e6e82c67b65651b258803ce30bc1d90104651b986a393fe135f95",
+          "gitBlob": "6e48858d0a5f77fe81e4d4a51f657bfbe42b1e55"
+        },
+        {
+          "path": "sources/turbospump.move",
+          "sha256": "8d9485ef3d30b4adcf6b10f1b74276132c406c959af0eb646c5744948197fea4",
+          "gitBlob": "369d7a2d3f50d65b579d45926f1a45e80e8ac0fe"
+        },
+        {
+          "path": "tests/turbospump_tests.move",
+          "sha256": "918b6e7893e4115161435d0e595b69fbf99e55128505b3f51bb8262a977c9a64",
+          "gitBlob": "379772d749162fac8cbd4623f3ab2ea1010f10b0"
+        }
+      ]
+    }
+  ]
+}

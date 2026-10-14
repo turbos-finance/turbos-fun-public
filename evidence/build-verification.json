@@ -1,0 +1,16 @@
+{
+  "project": "fun",
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "version": 1,
+  "sourceRevision": "7a5f81eeff29ec6baf53ee36dc84f512fb8c663d",
+  "verificationRecordedAt": "2026-09-29T02:13:52.586Z",
+  "archivedVerification": [
+    {
+      "commit": "7a5f81eeff29ec6baf53ee36dc84f512fb8c663d",
+      "result": "PASS",
+      "output": "Source verification succeeded!"
+    }
+  ],
+  "freshVerificationPerformed": false,
+  "qualification": null
+}

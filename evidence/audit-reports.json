@@ -1,0 +1,10 @@
+{
+  "project": "fun",
+  "reports": [
+    {
+      "file": "audits/movebit-fun-2024.pdf",
+      "sha256": "746a9fb2a8fb68ac2583db2314d278540ac1876979f07f7ad19e054936076c85",
+      "bytes": 332269
+    }
+  ]
+}
