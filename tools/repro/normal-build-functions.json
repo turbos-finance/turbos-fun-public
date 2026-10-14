@@ -1,0 +1,51 @@
+[
+  {
+    "module": "curves",
+    "source": "sources/curves.move",
+    "normalBuildFunctions": [
+      "calculate_liquidity_cost",
+      "calculate_sui_return",
+      "calculate_token_return"
+    ],
+    "normalSourceSha256": "d297acf8931e2b13f5e3275ee62a757091f2dc000c1c40a09fbd2a3608af482c"
+  },
+  {
+    "module": "full_math_u64",
+    "source": "sources/full_math_u64.move",
+    "normalBuildFunctions": [
+      "full_mul",
+      "mul_div_ceil",
+      "mul_div_floor",
+      "mul_div_round",
+      "mul_shl",
+      "mul_shr"
+    ],
+    "normalSourceSha256": "24ff8fbd3c3e6e82c67b65651b258803ce30bc1d90104651b986a393fe135f95"
+  },
+  {
+    "module": "turbospump",
+    "source": "sources/turbospump.move",
+    "normalBuildFunctions": [
+      "buy",
+      "buy_internal",
+      "buy_with_return",
+      "check_lp_value_is_increased_or_not_changed",
+      "check_version",
+      "collect_pool_with_return",
+      "collect_protocol_fee",
+      "complete_pool",
+      "create",
+      "init",
+      "migrate_pool_with_return",
+      "migrate_version",
+      "pool_migrated",
+      "sell",
+      "sell_internal",
+      "sell_with_return",
+      "skim",
+      "transfer_admin",
+      "update_config"
+    ],
+    "normalSourceSha256": "e65a7a729af1bc67a1100262bfdcb89d44c23560ca1d13013ee00e9661e0c06b"
+  }
+]
