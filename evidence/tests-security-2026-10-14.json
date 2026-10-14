@@ -1,0 +1,23 @@
+{
+  "exitCode": 0,
+  "gasLimit": "1000000000",
+  "testResult": {
+    "status": "OK",
+    "total": 20,
+    "passed": 20,
+    "failed": 0
+  },
+  "failedTests": [],
+  "missingDependency": false,
+  "date": "2026-10-14",
+  "sourceCommit": "7a5f81eeff29ec6baf53ee36dc84f512fb8c663d",
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "toolchain": "sui 1.66.2-a9a6825eaf62 (Darwin arm64)",
+  "testFrameworkCommit": "a9a6825eaf6273cc819ee3bcf65fd4909f7624a9",
+  "testOverlayApplied": true,
+  "modifications": "The original tests file is fully commented out (0 runnable tests). Adds 20 inline tests and test-only fixtures, exercising capability ownership, configuration/version checks, fee balance accounting and completed/incomplete pool migration/collection/skim. Synthetic Pool<SUI> fixtures do not model bonding-curve trading or real CLMM liquidity creation.",
+  "productionLogicChanged": false,
+  "coverageGenerated": false,
+  "coverageLimitation": "Installed CLI lacks tracing support; no line or branch coverage measured.",
+  "exhaustiveAuthorizationCoverage": false
+}

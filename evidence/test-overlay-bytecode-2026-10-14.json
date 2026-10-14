@@ -1,0 +1,51 @@
+{
+  "verifiedAt": "2026-10-14T09:08:04.831Z",
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "originalId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "version": "1",
+  "comparison": "Exact byte-for-byte module BCS; no normalization or exceptions",
+  "allModulesMatch": true,
+  "modules": [
+    {
+      "module": "curves",
+      "present": true,
+      "match": true,
+      "builtBytes": 259,
+      "deployedBytes": 259,
+      "builtSha256": "e4e3d074a5b61ccf9c5bb57a79eb5de661a601fd01cb630e2e6aa17dc1f4f136",
+      "deployedSha256": "e4e3d074a5b61ccf9c5bb57a79eb5de661a601fd01cb630e2e6aa17dc1f4f136"
+    },
+    {
+      "module": "full_math_u64",
+      "present": true,
+      "match": true,
+      "builtBytes": 322,
+      "deployedBytes": 322,
+      "builtSha256": "98573a24eda62154d5ca6412f172e05c0e5b010dbd8af482ff3d841fa757ffb1",
+      "deployedSha256": "98573a24eda62154d5ca6412f172e05c0e5b010dbd8af482ff3d841fa757ffb1"
+    },
+    {
+      "module": "turbospump",
+      "present": true,
+      "match": true,
+      "builtBytes": 5518,
+      "deployedBytes": 5518,
+      "builtSha256": "3e68e7fbce025560abd352fd6fdada4a8a8d0c3d89b926393b0863f991043cf4",
+      "deployedSha256": "3e68e7fbce025560abd352fd6fdada4a8a8d0c3d89b926393b0863f991043cf4"
+    }
+  ],
+  "extra": [],
+  "linkage": [
+    {
+      "originalId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "upgradedId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "upgradedVersion": "11"
+    },
+    {
+      "originalId": "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "upgradedId": "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "upgradedVersion": "28"
+    }
+  ],
+  "scope": "Normal (non-test) build after the explicit test-only source overlay; all root BCS module bytes exactly match mainnet. Linkage not independently compared."
+}
