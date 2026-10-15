@@ -1,0 +1,4 @@
+INCLUDING DEPENDENCY MoveStdlib
+INCLUDING DEPENDENCY Sui
+BUILDING TurbosPump
+Source verification succeeded!

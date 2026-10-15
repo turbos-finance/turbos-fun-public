@@ -35,3 +35,7 @@ sui client verify-source
 The archived verification result was obtained on 2026-09-29. A new verifier must record
 its exact compiler and dependency revisions; a different framework/compiler may change
 bytecode. Line and branch coverage reports have not yet been published.
+
+## Current-release metadata verification (2026-10-15)
+
+See [verified build configuration and official source-verification evidence](evidence/mvr-source-2026-10-15/README.md). This update does not change production functions. MVR GitInfo update and a fresh-cache registry-consumer run are separate follow-ups.
