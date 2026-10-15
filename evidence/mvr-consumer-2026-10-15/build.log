@@ -1,0 +1,8 @@
+Output from mvr:
+  │ [mvr] detected supported SUI CLI version
+  │ [mvr] resolving: "@turbos/fun/1" on network:  mainnet
+
+INCLUDING DEPENDENCY MoveStdlib
+INCLUDING DEPENDENCY Sui
+INCLUDING DEPENDENCY TurbosPump
+BUILDING PublicConsumerfun

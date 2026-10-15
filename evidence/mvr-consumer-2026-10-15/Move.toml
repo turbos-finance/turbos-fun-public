@@ -1,0 +1,8 @@
+[package]
+name = "PublicConsumerfun"
+edition = "2024"
+[addresses]
+consumer = "0x0"
+
+[dependencies]
+turbospump = { r.mvr = "@turbos/fun/1" }

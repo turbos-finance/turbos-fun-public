@@ -1,0 +1,82 @@
+{
+  "completedAt": "2026-10-15T07:34:30.953Z",
+  "project": "fun",
+  "network": "mainnet",
+  "mvrName": "@turbos/fun",
+  "version": 1,
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "sourceCommit": "13839b46b45d2e9a2c0a89d251fa57a7332f5172",
+  "registryIndexedCorrectCommit": true,
+  "versionedRegistry": {
+    "name": "@turbos/fun",
+    "metadata": {
+      "contact": "ted@turbos.finance; bruce@turbos.finance",
+      "description": "Turbos Fun",
+      "homepage_url": "https://app.turbos.finance",
+      "documentation_url": "https://github.com/turbos-finance/turbos-fun-public/blob/main/README.md"
+    },
+    "package_info": {
+      "id": "0x962f731f9085c5b7b919def4b1309c3b0783bc8646d46045c9d6fe0ecce2913c",
+      "git_table_id": "0xe6480cdee4c6f799f9d3119e0625c200350446972ef6e17f00e4d240fcc918e7",
+      "default_name": "@turbos/fun",
+      "metadata": {
+        "default": "@turbos/fun"
+      }
+    },
+    "git_info": {
+      "repository_url": "https://github.com/turbos-finance/turbos-fun-public",
+      "path": "",
+      "tag": "13839b46b45d2e9a2c0a89d251fa57a7332f5172"
+    },
+    "version": 1,
+    "package_address": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15"
+  },
+  "latestRegistryAlsoMatches": true,
+  "metadataUpdate": {
+    "digest": "8d2nzwYgTTizbn1QBAydvj8jnjd4ViqsQWMd9eoBfdcY",
+    "sender": "0x6d92d887ba0858d58979fd88bbe91d4baf5ed473acc30804463608ef5d12697f",
+    "success": true,
+    "proposalCommandsAndInputsMatch": true
+  },
+  "toolchain": "sui 1.66.2-a9a6825eaf62",
+  "resolver": "mvr 0.1.0-d85f8ad92add",
+  "cacheScope": "A new empty MOVE_HOME was created for this five-package run; dependencies downloaded normally and were shared between its consumers. No old Move cache was seeded or edited.",
+  "nonEmptyImport": true,
+  "checks": [
+    {
+      "label": "fun-mvr-add",
+      "start": "2026-10-15T07:32:02.393Z",
+      "end": "2026-10-15T07:32:07.757Z",
+      "command": [
+        "mvr",
+        "add",
+        "@turbos/fun/1"
+      ],
+      "exitCode": 0
+    },
+    {
+      "label": "fun-build",
+      "start": "2026-10-15T07:32:07.757Z",
+      "end": "2026-10-15T07:32:09.942Z",
+      "command": [
+        "sui",
+        "move",
+        "build",
+        "--build-env",
+        "mainnet",
+        "--silence-warnings",
+        "--no-lint"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "allPassed": true,
+  "noMainnetTransactionByVerifier": true,
+  "limitations": "Consumer compilation proves dependency resolution and public function type checking, not runtime execution, full authorization/invariant testing, audit closure, all historical versions, or all peripheral packages.",
+  "freshlyBuiltDependencyModules": {
+    "allMatch": true,
+    "count": 3,
+    "referenceChainReadAt": "2026-10-15T02:24:54.634Z",
+    "scope": "SHA-256 of freshly MVR-built dependency module BCS versus recorded immutable deployed-package module hashes; no new chain fetch"
+  }
+}

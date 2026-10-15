@@ -1,0 +1,30 @@
+{
+  "project": "fun",
+  "packageId": "0x96e1396c8a771c8ae404b86328dc27e7b66af39847a31926980c96dbc1096a15",
+  "version": "1",
+  "verifiedAt": "2026-10-15T07:35:19.675Z",
+  "referenceChainReadAt": "2026-10-15T02:24:54.634Z",
+  "comparison": "SHA-256 of freshly MVR-built dependency module BCS versus recorded immutable deployed-package module hashes; no new chain fetch",
+  "modules": [
+    {
+      "module": "curves",
+      "sha256": "e4e3d074a5b61ccf9c5bb57a79eb5de661a601fd01cb630e2e6aa17dc1f4f136",
+      "deployedSha256": "e4e3d074a5b61ccf9c5bb57a79eb5de661a601fd01cb630e2e6aa17dc1f4f136",
+      "match": true
+    },
+    {
+      "module": "full_math_u64",
+      "sha256": "98573a24eda62154d5ca6412f172e05c0e5b010dbd8af482ff3d841fa757ffb1",
+      "deployedSha256": "98573a24eda62154d5ca6412f172e05c0e5b010dbd8af482ff3d841fa757ffb1",
+      "match": true
+    },
+    {
+      "module": "turbospump",
+      "sha256": "3e68e7fbce025560abd352fd6fdada4a8a8d0c3d89b926393b0863f991043cf4",
+      "deployedSha256": "3e68e7fbce025560abd352fd6fdada4a8a8d0c3d89b926393b0863f991043cf4",
+      "match": true
+    }
+  ],
+  "extras": [],
+  "allMatch": true
+}
