@@ -1,0 +1,41 @@
+{
+  "startedAt": "2026-10-15T07:56:16.452Z",
+  "completedAt": "2026-10-15T07:56:31.461Z",
+  "project": "fun",
+  "toolchain": "sui 1.66.2-a9a6825eaf62",
+  "testFrameworkCommit": "a9a6825eaf6273cc819ee3bcf65fd4909f7624a9",
+  "clmmMetadataCommit": null,
+  "command": [
+    "sui",
+    "move",
+    "test",
+    "--path",
+    "DISPOSABLE_DIRECTORY",
+    "--build-env",
+    "mainnet",
+    "--silence-warnings",
+    "--no-lint",
+    "--gas-limit",
+    "1000000000",
+    "--threads",
+    "1"
+  ],
+  "exitCode": 0,
+  "diskStopped": false,
+  "timedOut": false,
+  "testResult": {
+    "status": "OK",
+    "total": 32,
+    "passed": 32,
+    "failed": 0
+  },
+  "currentCheckoutSourcesAndTests": true,
+  "sourceAndTestsUnchanged": true,
+  "sourceTreeSha256": "a0d56e5eea0a3f6be8374f914cdfd7af999d7359f7a3a13d710e560763c25d1b",
+  "coverageMeasured": false,
+  "scope": "Current-checkout unit tests only; production bytecode verification is separate",
+  "previousPublicHead": "d1886c06240f8462b2399803011eb4a57279e5d9",
+  "notes": "The 20 previously published capability, config, fee and migration tests are now inline in sources/turbospump.move, marked #[test]/#[test_only]. Adds 12 standalone full_math_u64 tests for rounding, arithmetic bounds, division by zero and shifts. No private quote/event/collection fix or fix-dependent regression test is included.",
+  "productionBytecodeStillMatches": true,
+  "allAuthorizationAndInvariantCasesCovered": false
+}

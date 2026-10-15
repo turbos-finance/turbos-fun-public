@@ -764,4 +764,245 @@ module turbospump::turbospump {
         );
     }
 
+    // Compliance test overlay. Every helper/test below is excluded from normal builds.
+    #[test_only]
+    fun setup_security_tests(): (sui::test_scenario::Scenario, AdminCap, Configuration) {
+        let mut scenario = sui::test_scenario::begin(@0xA);
+        init(sui::test_scenario::ctx(&mut scenario));
+        sui::test_scenario::next_tx(&mut scenario, @0xA);
+        let cap = sui::test_scenario::take_from_sender<AdminCap>(&scenario);
+        let config = sui::test_scenario::take_shared<Configuration>(&scenario);
+        (scenario, cap, config)
+    }
+
+    #[test_only]
+    fun finish_security_tests(scenario: sui::test_scenario::Scenario, cap: AdminCap, config: Configuration) {
+        sui::test_scenario::return_to_sender(&scenario, cap);
+        sui::test_scenario::return_shared(config);
+        sui::test_scenario::end(scenario);
+    }
+
+    #[test_only]
+    fun add_security_test_pool(config: &mut Configuration, completed: bool, ctx: &mut TxContext) {
+        let pool = Pool<SUI> {
+            id: object::new(ctx),
+            real_sui_reserves: coin::into_balance(coin::mint_for_testing<SUI>(50, ctx)),
+            real_token_reserves: coin::into_balance(coin::mint_for_testing<SUI>(100, ctx)),
+            virtual_token_reserves: 100,
+            virtual_sui_reserves: 50,
+            remain_token_reserves: coin::into_balance(coin::mint_for_testing<SUI>(25, ctx)),
+            is_completed: completed,
+            token_supply: option::none(),
+            lp_type: 0,
+        };
+        dynamic_object_field::add(&mut config.id, type_name::get_address(&type_name::get<SUI>()), pool);
+    }
+
+    #[test]
+    fun security_admin_can_update_configuration() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        let clock = clock::create_for_testing(sui::test_scenario::ctx(&mut scenario));
+        update_config(&cap, &mut config, 100, 200, 300, 400, 500, 6, 700, &clock, sui::test_scenario::ctx(&mut scenario));
+        assert!(config.platform_fee == 100 && config.deployment_fee == 200, 99);
+        assert!(config.initial_virtual_sui_reserves == 300 && config.initial_virtual_token_reserves == 400, 99);
+        assert!(config.remain_token_reserves == 500 && config.token_decimals == 6 && config.fair_launch_sui_amount == 700, 99);
+        clock::destroy_for_testing(clock);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_admin_can_set_payout_destination() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        transfer_admin(&cap, &mut config, @0xB, sui::test_scenario::ctx(&mut scenario));
+        assert!(config.admin == @0xB, 99);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 0, location = turbospump::turbospump)]
+    fun security_stale_version_rejects_payout_change() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        config.version = 0;
+        transfer_admin(&cap, &mut config, @0xB, sui::test_scenario::ctx(&mut scenario));
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 0, location = turbospump::turbospump)]
+    fun security_future_version_rejects_config_change() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        config.version = 2;
+        let clock = clock::create_for_testing(sui::test_scenario::ctx(&mut scenario));
+        update_config(&cap, &mut config, 100, 200, 300, 400, 500, 6, 700, &clock, sui::test_scenario::ctx(&mut scenario));
+        clock::destroy_for_testing(clock);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_admin_can_migrate_stale_version() {
+        let (scenario, cap, mut config) = setup_security_tests();
+        config.version = 0;
+        migrate_version(&cap, &mut config);
+        assert!(config.version == CURRENT_VERSION, 99);
+        check_version(config.version);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 0, location = turbospump::turbospump)]
+    fun security_migration_rejects_current_version() {
+        let (scenario, cap, mut config) = setup_security_tests();
+        migrate_version(&cap, &mut config);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 0, location = turbospump::turbospump)]
+    fun security_migration_rejects_future_version() {
+        let (scenario, cap, mut config) = setup_security_tests();
+        config.version = 2;
+        migrate_version(&cap, &mut config);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 3, location = sui::test_scenario)]
+    fun security_non_owner_cannot_take_admin_cap() {
+        let mut scenario = sui::test_scenario::begin(@0xA);
+        init(sui::test_scenario::ctx(&mut scenario));
+        sui::test_scenario::next_tx(&mut scenario, @0xB);
+        let cap = sui::test_scenario::take_from_sender<AdminCap>(&scenario);
+        sui::test_scenario::return_to_sender(&scenario, cap);
+        sui::test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun security_cap_transfer_changes_its_holder_not_payout() {
+        let (mut scenario, cap, config) = setup_security_tests();
+        let old_payout = config.admin;
+        transfer::public_transfer(cap, @0xB);
+        sui::test_scenario::return_shared(config);
+        sui::test_scenario::next_tx(&mut scenario, @0xB);
+        let cap = sui::test_scenario::take_from_sender<AdminCap>(&scenario);
+        let config = sui::test_scenario::take_shared<Configuration>(&scenario);
+        assert!(config.admin == old_payout, 99);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_fee_collection_caps_requested_amount_to_balance() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        balance::join(&mut config.protocol_vault, coin::into_balance(coin::mint_for_testing<SUI>(15, sui::test_scenario::ctx(&mut scenario))));
+        collect_protocol_fee(&cap, &mut config, 100, @0xB, sui::test_scenario::ctx(&mut scenario));
+        assert!(balance::value(&config.protocol_vault) == 0, 99);
+        sui::test_scenario::return_to_sender(&scenario, cap);
+        sui::test_scenario::return_shared(config);
+        sui::test_scenario::next_tx(&mut scenario, @0xB);
+        let received = sui::test_scenario::take_from_sender<Coin<SUI>>(&scenario);
+        assert!(coin::burn_for_testing(received) == 15, 99);
+        sui::test_scenario::end(scenario);
+    }
+
+    #[test]
+    fun security_fee_collection_preserves_unrequested_balance() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        balance::join(&mut config.protocol_vault, coin::into_balance(coin::mint_for_testing<SUI>(15, sui::test_scenario::ctx(&mut scenario))));
+        collect_protocol_fee(&cap, &mut config, 5, @0xA, sui::test_scenario::ctx(&mut scenario));
+        assert!(balance::value(&config.protocol_vault) == 10, 99);
+        sui::test_scenario::return_to_sender(&scenario, cap);
+        sui::test_scenario::return_shared(config);
+        sui::test_scenario::next_tx(&mut scenario, @0xA);
+        let received = sui::test_scenario::take_from_sender<Coin<SUI>>(&scenario);
+        assert!(coin::burn_for_testing(received) == 5, 99);
+        sui::test_scenario::end(scenario);
+    }
+
+    #[test, expected_failure(abort_code = 0, location = turbospump::turbospump)]
+    fun security_fee_collection_rejects_wrong_version() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        config.version = 0;
+        collect_protocol_fee(&cap, &mut config, 0, @0xB, sui::test_scenario::ctx(&mut scenario));
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_completed_pool_migration_returns_all_reserves() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, true, sui::test_scenario::ctx(&mut scenario));
+        let (token, sui) = migrate_pool_with_return<SUI>(&cap, &mut config, sui::test_scenario::ctx(&mut scenario));
+        assert!(coin::burn_for_testing(token) == 125, 99);
+        assert!(coin::burn_for_testing(sui) == 50, 99);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 3, location = turbospump::turbospump)]
+    fun security_incomplete_pool_rejects_migration() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, false, sui::test_scenario::ctx(&mut scenario));
+        let (token, sui) = migrate_pool_with_return<SUI>(&cap, &mut config, sui::test_scenario::ctx(&mut scenario));
+        coin::burn_for_testing(token); coin::burn_for_testing(sui);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_completed_pool_collection_preserves_remainder() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, true, sui::test_scenario::ctx(&mut scenario));
+        let (token, sui) = collect_pool_with_return<SUI>(&cap, &mut config, 30, 20, sui::test_scenario::ctx(&mut scenario));
+        assert!(coin::burn_for_testing(token) == 30, 99);
+        assert!(coin::burn_for_testing(sui) == 20, 99);
+        let pool = dynamic_object_field::borrow<ascii::String, Pool<SUI>>(&config.id, type_name::get_address(&type_name::get<SUI>()));
+        assert!(balance::value(&pool.real_token_reserves) == 70 && balance::value(&pool.real_sui_reserves) == 30, 99);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 3, location = turbospump::turbospump)]
+    fun security_incomplete_pool_rejects_collection() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, false, sui::test_scenario::ctx(&mut scenario));
+        let (token, sui) = collect_pool_with_return<SUI>(&cap, &mut config, 0, 0, sui::test_scenario::ctx(&mut scenario));
+        coin::burn_for_testing(token); coin::burn_for_testing(sui);
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_completed_pool_can_emit_migration_event() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, true, sui::test_scenario::ctx(&mut scenario));
+        let uid = object::new(sui::test_scenario::ctx(&mut scenario));
+        let id = object::uid_to_inner(&uid);
+        object::delete(uid);
+        pool_migrated<SUI>(&cap, &mut config, id, sui::test_scenario::ctx(&mut scenario));
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test, expected_failure(abort_code = 3, location = turbospump::turbospump)]
+    fun security_incomplete_pool_rejects_migration_event() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, false, sui::test_scenario::ctx(&mut scenario));
+        let uid = object::new(sui::test_scenario::ctx(&mut scenario));
+        let id = object::uid_to_inner(&uid);
+        object::delete(uid);
+        pool_migrated<SUI>(&cap, &mut config, id, sui::test_scenario::ctx(&mut scenario));
+        finish_security_tests(scenario, cap, config);
+    }
+
+    #[test]
+    fun security_skim_pays_configured_destination_not_cap_holder() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        transfer_admin(&cap, &mut config, @0xB, sui::test_scenario::ctx(&mut scenario));
+        add_security_test_pool(&mut config, true, sui::test_scenario::ctx(&mut scenario));
+        skim<SUI>(&cap, &mut config, sui::test_scenario::ctx(&mut scenario));
+        sui::test_scenario::return_to_sender(&scenario, cap);
+        sui::test_scenario::return_shared(config);
+        sui::test_scenario::next_tx(&mut scenario, @0xB);
+        let first = sui::test_scenario::take_from_sender<Coin<SUI>>(&scenario);
+        let second = sui::test_scenario::take_from_sender<Coin<SUI>>(&scenario);
+        assert!(coin::burn_for_testing(first) + coin::burn_for_testing(second) == 150, 99);
+        sui::test_scenario::end(scenario);
+    }
+
+    #[test, expected_failure(abort_code = 3, location = turbospump::turbospump)]
+    fun security_incomplete_pool_rejects_skim() {
+        let (mut scenario, cap, mut config) = setup_security_tests();
+        add_security_test_pool(&mut config, false, sui::test_scenario::ctx(&mut scenario));
+        skim<SUI>(&cap, &mut config, sui::test_scenario::ctx(&mut scenario));
+        finish_security_tests(scenario, cap, config);
+    }
+
 }
