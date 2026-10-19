@@ -47,3 +47,7 @@ The owner executed the current-version GitInfo update. The official MVR add and 
 ## Tests in the current checkout (2026-10-15)
 
 The reviewed test changes are now directly tracked in the source/tests tree: **32 passed, 0 failed**. Run `node tools/test-current.mjs NEW_DISPOSABLE_DIRECTORY`. See [current test code, run instructions and results](evidence/tests-current-2026-10-15/README.md). Production bytecode and MVR source links are unchanged. Historical tools/repro overlays and coverage reports retain their original scope.
+
+## Current full-suite coverage (2026-10-19)
+
+All **32/32** current public tests passed with matching per-test traces. Production line coverage **39.59%**, CFG-edge branch coverage **21.36%**. See the [current report and raw evidence](evidence/coverage-2026-10-19/README.md) and run `SUI_BINARY=/path/to/tracing/sui node tools/coverage-current.mjs NEW_DISPOSABLE_DIRECTORY`. Full-suite capture is not a claim of exhaustive authorization/invariant coverage.

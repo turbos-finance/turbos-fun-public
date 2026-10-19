@@ -1,0 +1,38 @@
+[rtk] /!\ No hook installed — run `rtk init -g` for automatic token savings
+INCLUDING DEPENDENCY MoveStdlib
+INCLUDING DEPENDENCY Sui
+BUILDING TurbosPump
+Running Move unit tests
+[ PASS    ] turbospump::full_math_security_tests::ceil_rejects_quotient_overflow
+[ PASS    ] turbospump::full_math_security_tests::ceil_rejects_zero_denominator
+[ PASS    ] turbospump::full_math_security_tests::exact_division_and_u64_limit
+[ PASS    ] turbospump::full_math_security_tests::floor_rejects_quotient_overflow
+[ PASS    ] turbospump::full_math_security_tests::floor_rejects_zero_denominator
+[ PASS    ] turbospump::full_math_security_tests::floor_round_ceil_and_zero
+[ PASS    ] turbospump::full_math_security_tests::round_rejects_quotient_overflow
+[ PASS    ] turbospump::full_math_security_tests::round_rejects_zero_denominator
+[ PASS    ] turbospump::full_math_security_tests::shift_left_rejects_invalid_shift
+[ PASS    ] turbospump::full_math_security_tests::shift_left_rejects_u64_result_overflow
+[ PASS    ] turbospump::full_math_security_tests::shift_right_rejects_invalid_shift
+[ PASS    ] turbospump::full_math_security_tests::shifts_with_representable_results
+[ PASS    ] turbospump::turbospump::security_admin_can_migrate_stale_version
+[ PASS    ] turbospump::turbospump::security_admin_can_set_payout_destination
+[ PASS    ] turbospump::turbospump::security_admin_can_update_configuration
+[ PASS    ] turbospump::turbospump::security_cap_transfer_changes_its_holder_not_payout
+[ PASS    ] turbospump::turbospump::security_completed_pool_can_emit_migration_event
+[ PASS    ] turbospump::turbospump::security_completed_pool_collection_preserves_remainder
+[ PASS    ] turbospump::turbospump::security_completed_pool_migration_returns_all_reserves
+[ PASS    ] turbospump::turbospump::security_fee_collection_caps_requested_amount_to_balance
+[ PASS    ] turbospump::turbospump::security_fee_collection_preserves_unrequested_balance
+[ PASS    ] turbospump::turbospump::security_fee_collection_rejects_wrong_version
+[ PASS    ] turbospump::turbospump::security_future_version_rejects_config_change
+[ PASS    ] turbospump::turbospump::security_incomplete_pool_rejects_collection
+[ PASS    ] turbospump::turbospump::security_incomplete_pool_rejects_migration
+[ PASS    ] turbospump::turbospump::security_incomplete_pool_rejects_migration_event
+[ PASS    ] turbospump::turbospump::security_incomplete_pool_rejects_skim
+[ PASS    ] turbospump::turbospump::security_migration_rejects_current_version
+[ PASS    ] turbospump::turbospump::security_migration_rejects_future_version
+[ PASS    ] turbospump::turbospump::security_non_owner_cannot_take_admin_cap
+[ PASS    ] turbospump::turbospump::security_skim_pays_configured_destination_not_cap_holder
+[ PASS    ] turbospump::turbospump::security_stale_version_rejects_payout_change
+Test result: OK. Total tests: 32; passed: 32; failed: 0

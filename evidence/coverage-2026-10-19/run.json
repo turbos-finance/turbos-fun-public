@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-10-19T02:09:25.935Z",
+  "project": "fun",
+  "total": 32,
+  "passed": 32,
+  "failed": 0,
+  "coverage": true,
+  "fullSuiteCovered": true,
+  "fullSuiteTraced": true,
+  "traceRequested": true,
+  "filter": null,
+  "sourceAndTestsUnchanged": true,
+  "sourceTreeSha256": "a0d56e5eea0a3f6be8374f914cdfd7af999d7359f7a3a13d710e560763c25d1b",
+  "sourceCommit": "385cc197dc507521c395fea860e1505a8832cedc",
+  "toolchain": "sui 1.66.2-a9a6825eaf62",
+  "threads": 1,
+  "perTestTraceCount": 32,
+  "allPassingTestsHaveTrace": true
+}

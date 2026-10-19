@@ -1,3 +1,5 @@
+> October 19 update: [new full-suite coverage](../coverage-2026-10-19/README.md) measures all 32 tests in this public tree; the earlier coverage limitations below describe the historical October 14 report.
+
 # Tests integrated into the current public checkout — 2026-10-15
 
 **32 passed, 0 failed**. [Result](result.json), [full log](tests.log), [normal-bytecode check](normal-bytecode.json).
